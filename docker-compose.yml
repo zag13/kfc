@@ -1,0 +1,86 @@
+version: "3.8"
+
+services:
+
+  # -------------------------------- Zookeeper --------------------------------
+  zookeeper:
+    image: bitnami/zookeeper:3.7
+    container_name: zookeeper
+    hostname: zookeeper
+    ports:
+      - '2181:2181'
+    volumes:
+      - "zookeeper_data:/bitnami"
+    environment:
+      - TZ=Asia/Shanghai
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - "bkc_net"
+
+  # -------------------------------- Kafka --------------------------------
+  kafka:
+    image: bitnami/kafka:3.1
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9093:9093"
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      - TZ=Asia/Shanghai
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
+      - KAFKA_INTER_BROKER_LISTENER_NAME=CLIENT
+    depends_on:
+      - zookeeper
+    networks:
+      - "bkc_net"
+
+  # -------------------------------- cmak --------------------------------
+  cmak:
+    build: ./cmak
+    container_name: cmak
+    hostname: cmak
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - TZ=Asia/Shanghai
+      - ZK_HOSTS=zookeeper:2181
+      - KAFKA_MANAGER_AUTH_ENABLED=true
+      - KAFKA_MANAGER_USERNAME=admin
+      - KAFKA_MANAGER_PASSWORD=admin
+    depends_on:
+      - zookeeper
+    networks:
+      - "bkc_net"
+
+  # -------------------------------- filebeat --------------------------------
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.2.1
+    container_name: filebeat
+    hostname: filebeat
+    restart: always
+    user: root
+    volumes:
+      - "./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro"
+      - "./zoneinfo/Asia/Shanghai:/etc/localtime:ro"
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "$HOME/Desktop/log/messages:/var/log/messages"
+    networks:
+      - bkc_net
+    command: [ "-e", "--strict.perms=false" ]
+
+volumes:
+  zookeeper_data:
+    driver: local
+  kafka_data:
+    driver: local
+
+networks:
+  bkc_net:
+    external: true
