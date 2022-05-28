@@ -10,6 +10,12 @@ filebeat.config.modules:
   # Period on which files under path should be checked for changes
   #reload.period: 10s
 
+# ================================== General ===================================
+
+processors:
+ - add_locale:
+     format: offset
+
 # ================================== Logging ===================================
 
 # There are four options for the log output: file, stderr, syslog, eventlog

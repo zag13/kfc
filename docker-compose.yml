@@ -1,21 +1,37 @@
 version: "3.8"
 
+networks:
+  bkc_net:
+    driver: ${NETWORKS_DRIVER}
+    external: true
+
+volumes:
+  zookeeper:
+    driver: ${VOLUMES_DRIVER}
+  kafka:
+    driver: ${VOLUMES_DRIVER}
+  clickhouse:
+    driver: ${VOLUMES_DRIVER}
+  clickhouse-server:
+    driver: ${VOLUMES_DRIVER}
+
 services:
 
-  # -------------------------------- Zookeeper --------------------------------
+  # -------------------------------- ZooKeeper --------------------------------
   zookeeper:
     image: bitnami/zookeeper:3.7
     container_name: zookeeper
     hostname: zookeeper
+    restart: always
     ports:
-      - '2181:2181'
+      - ${ZOOKEEPER_PORT}:2181
     volumes:
-      - "zookeeper_data:/bitnami"
+      - zookeeper:/bitnami
     environment:
-      - TZ=Asia/Shanghai
+      - TZ=${TZ}
       - ALLOW_ANONYMOUS_LOGIN=yes
     networks:
-      - "bkc_net"
+      - bkc_net
 
   # -------------------------------- Kafka --------------------------------
   kafka:
@@ -23,12 +39,12 @@ services:
     container_name: kafka
     hostname: kafka
     ports:
-      - "9093:9093"
+      - 9093:9093
     volumes:
-      - "kafka_data:/bitnami"
+      - kafka:/bitnami
     environment:
-      - TZ=Asia/Shanghai
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - TZ=${TZ}
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:${ZOOKEEPER_PORT}
       - ALLOW_PLAINTEXT_LISTENER=yes
       - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
       - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
@@ -37,50 +53,86 @@ services:
     depends_on:
       - zookeeper
     networks:
-      - "bkc_net"
+      - bkc_net
 
-  # -------------------------------- cmak --------------------------------
+  # -------------------------------- CMAK --------------------------------
   cmak:
     build: ./cmak
     container_name: cmak
     hostname: cmak
-    restart: unless-stopped
     ports:
-      - "9000:9000"
+      - 9000:9000
     environment:
-      - TZ=Asia/Shanghai
-      - ZK_HOSTS=zookeeper:2181
+      - TZ=${TZ}
+      - ZK_HOSTS=zookeeper:${ZOOKEEPER_PORT}
       - KAFKA_MANAGER_AUTH_ENABLED=true
       - KAFKA_MANAGER_USERNAME=admin
       - KAFKA_MANAGER_PASSWORD=admin
     depends_on:
       - zookeeper
     networks:
-      - "bkc_net"
+      - bkc_net
 
-  # -------------------------------- filebeat --------------------------------
+  # -------------------------------- Filebeat --------------------------------
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.2.1
     container_name: filebeat
     hostname: filebeat
-    restart: always
     user: root
     volumes:
-      - "./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro"
-      - "./zoneinfo/Asia/Shanghai:/etc/localtime:ro"
-      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "$HOME/Desktop/log/messages:/var/log/messages"
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ${ETC_LOCALTIME}:/etc/localtime:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - $HOME/Desktop/log/messages:/var/log/messages
     networks:
       - bkc_net
     command: [ "-e", "--strict.perms=false" ]
 
-volumes:
-  zookeeper_data:
-    driver: local
-  kafka_data:
-    driver: local
+  # -------------------------------- Flink --------------------------------
+  jobmanager:
+    image: flink:latest
+    container_name: jobmanager
+    hostname: jobmanager
+    ports:
+      - 8081:8081
+    environment:
+      - TZ=${TZ}
+      - FLINK_PROPERTIES=${FLINK_PROPERTIES_JOB}
+    networks:
+      - bkc_net
+    command: [ "jobmanager" ]
 
-networks:
-  bkc_net:
-    external: true
+  taskmanager:
+    image: flink:latest
+    container_name: taskmanager
+    scale: 1
+    environment:
+      - TZ=${TZ}
+      - FLINK_PROPERTIES=${FLINK_PROPERTIES_TASK}
+    depends_on:
+      - jobmanager
+    networks:
+      - bkc_net
+    command: [ "taskmanager" ]
+
+  # -------------------------------- ClickHouse --------------------------------
+  clickhouse-server:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse-server
+    hostname: clickhouse-server
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    ports:
+      - 18123:8123
+      - 19000:9000
+    volumes:
+      - clickhouse:/var/lib/clickhouse
+      - clickhouse-server:/var/lib/clickhouse-server
+    environment:
+      TZ: Asia/Shanghai
+      HOSTNAME: clickhouse-server
+    networks:
+      - bkc_net
