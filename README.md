@@ -1,6 +1,6 @@
 # KFC
 
-`K` 是 kafka， `F` 是 filebeat， `C` 是 clickhouse。
+`K` 是 kafka， `F` 是 filebeat 和 flink， `C` 是 clickhouse。
 
 此处搭建了一套简单的日志处理方案。
 
