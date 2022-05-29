@@ -1,5 +1,5 @@
-# BKC
+# KFC
 
 
 
-`docker network create bkc_net`
+`docker network create kfc_net`

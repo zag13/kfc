@@ -1,7 +1,7 @@
 version: "3.8"
 
 networks:
-  bkc_net:
+  kfc_net:
     driver: ${NETWORKS_DRIVER}
     external: true
 
@@ -13,6 +13,8 @@ volumes:
   clickhouse:
     driver: ${VOLUMES_DRIVER}
   clickhouse-server:
+    driver: ${VOLUMES_DRIVER}
+  superset_home:
     driver: ${VOLUMES_DRIVER}
 
 services:
@@ -31,7 +33,7 @@ services:
       - TZ=${TZ}
       - ALLOW_ANONYMOUS_LOGIN=yes
     networks:
-      - bkc_net
+      - kfc_net
 
   # -------------------------------- Kafka --------------------------------
   kafka:
@@ -53,25 +55,25 @@ services:
     depends_on:
       - zookeeper
     networks:
-      - bkc_net
+      - kfc_net
 
   # -------------------------------- CMAK --------------------------------
-  cmak:
-    build: ./cmak
-    container_name: cmak
-    hostname: cmak
-    ports:
-      - 9000:9000
-    environment:
-      - TZ=${TZ}
-      - ZK_HOSTS=zookeeper:${ZOOKEEPER_PORT}
-      - KAFKA_MANAGER_AUTH_ENABLED=true
-      - KAFKA_MANAGER_USERNAME=admin
-      - KAFKA_MANAGER_PASSWORD=admin
-    depends_on:
-      - zookeeper
-    networks:
-      - bkc_net
+  # cmak:
+  #   build: ./cmak
+  #   container_name: cmak
+  #   hostname: cmak
+  #   ports:
+  #     - 9000:9000
+  #   environment:
+  #     - TZ=${TZ}
+  #     - ZK_HOSTS=zookeeper:${ZOOKEEPER_PORT}
+  #     - KAFKA_MANAGER_AUTH_ENABLED=true
+  #     - KAFKA_MANAGER_USERNAME=admin
+  #     - KAFKA_MANAGER_PASSWORD=admin
+  #   depends_on:
+  #     - zookeeper
+  #   networks:
+  #     - kfc_net
 
   # -------------------------------- Filebeat --------------------------------
   filebeat:
@@ -86,12 +88,12 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - $HOME/Desktop/log/messages:/var/log/messages
     networks:
-      - bkc_net
+      - kfc_net
     command: [ "-e", "--strict.perms=false" ]
 
   # -------------------------------- Flink --------------------------------
   jobmanager:
-    image: flink:latest
+    image: flink:1.15.0-scala_2.12-java11
     container_name: jobmanager
     hostname: jobmanager
     ports:
@@ -100,11 +102,11 @@ services:
       - TZ=${TZ}
       - FLINK_PROPERTIES=${FLINK_PROPERTIES_JOB}
     networks:
-      - bkc_net
+      - kfc_net
     command: [ "jobmanager" ]
 
   taskmanager:
-    image: flink:latest
+    image: flink:1.15.0-scala_2.12-java11
     container_name: taskmanager
     scale: 1
     environment:
@@ -113,12 +115,12 @@ services:
     depends_on:
       - jobmanager
     networks:
-      - bkc_net
+      - kfc_net
     command: [ "taskmanager" ]
 
   # -------------------------------- ClickHouse --------------------------------
   clickhouse-server:
-    image: clickhouse/clickhouse-server:latest
+    image: clickhouse/clickhouse-server:22.5.1
     container_name: clickhouse-server
     hostname: clickhouse-server
     ulimits:
@@ -132,7 +134,87 @@ services:
       - clickhouse:/var/lib/clickhouse
       - clickhouse-server:/var/lib/clickhouse-server
     environment:
-      TZ: Asia/Shanghai
-      HOSTNAME: clickhouse-server
+      - TZ=${TZ}
+      - HOSTNAME=clickhouse-server
     networks:
-      - bkc_net
+      - kfc_net
+
+  # 地址不正确
+  # clickhouse-client:
+  #   image: clickhouse/clickhouse-client:22.1.3
+  #   container_name: clickhouse-client
+  #   hostname: clickhouse-client
+  #   environment:
+  #     - TZ=${TZ}
+  #   networks:
+  #     - kfc_net
+  #   command: [ "--host=localhost:19000" ]
+
+
+  # -------------------------------- Superset --------------------------------
+  superset:
+    env_file: ${SUPERSET_ENV_FILE}
+    image: apache/superset:latest-dev
+    container_name: superset-app
+    user: root
+    ports:
+      - 8088:8088
+    volumes:
+      - ./superset/docker:/app/docker
+      - superset_home:/app/superset_home
+    environment:
+      - TZ=${TZ}
+    # depends_on:
+    #   - db
+    #   - redis
+    networks:
+      - kfc_net
+    command: [ "/app/docker/docker-bootstrap.sh", "app-gunicorn" ]
+  # superset-init:
+  #   env_file: ${SUPERSET_ENV_FILE}
+  #   image: apache/superset:latest-dev
+  #   container_name: superset_init
+  #   user: root
+  #   volumes:
+  #     - ./superset/docker:/app/docker
+  #     - superset_home:/app/superset_home
+  #   environment:
+  #     - TZ=${TZ}
+  #   # depends_on:
+  #   #   - db
+  #   #   - redis
+  #   command: ["/app/docker/docker-init.sh"]
+
+  # superset-worker:
+  #   env_file: ${SUPERSET_ENV_FILE}
+  #   image: apache/superset:latest-dev
+  #   container_name: superset_worker
+  #   user: root
+  #   volumes:
+  #     - ./superset/docker:/app/docker
+  #     - superset_home:/app/superset_home
+  #   environment:
+  #     - TZ=${TZ}
+  #   # depends_on:
+  #   #   - db
+  #   #   - redis
+  #   networks:
+  #     - kfc_net
+  #   command: [ "/app/docker/docker-bootstrap.sh", "worker" ]
+
+  # superset-worker-beat:
+  #   env_file: ${SUPERSET_ENV_FILE}
+  #   image: apache/superset:latest-dev
+  #   container_name: superset_worker_beat
+  #   user: root
+  #   volumes:
+  #     - ./superset/docker:/app/docker
+  #     - superset_home:/app/superset_home
+  #   environment:
+  #     - TZ=${TZ}
+  #   # depends_on:
+  #   #   - db
+  #   #   - redis
+  #   networks:
+  #     - kfc_net
+  #   command: [ "/app/docker/docker-bootstrap.sh", "beat" ]

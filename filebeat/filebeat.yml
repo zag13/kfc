@@ -78,7 +78,7 @@ output.kafka:
 
   # The Kafka topic used for produced events. The setting can be a format string
   # using any event field. To set the topic from document type use `%{[type]}`.
-  topic: hello-bkc
+  topic: hello-kfc
 
   # The Kafka event key setting. Use format string to create a unique event key.
   # By default no event key will be generated.
