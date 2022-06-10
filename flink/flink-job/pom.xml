@@ -25,6 +25,7 @@
             <scope>provided</scope>
         </dependency>
 
+        <!--   Add for Kafka-->
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-connector-kafka</artifactId>
@@ -36,18 +37,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-core</artifactId>
-            <version>1.15.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-java_2.11</artifactId>
-            <version>1.14.4</version>
-        </dependency>
-
-        <!--   Add for Kafka-->
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
@@ -78,7 +67,7 @@
         <!--   Add logging framework-->
         <dependency>
             <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-reload4j</artifactId>
+            <artifactId>slf4j-api</artifactId>
             <version>1.7.36</version>
         </dependency>
         <dependency>
@@ -87,6 +76,7 @@
             <version>1.2.17</version>
         </dependency>
 
+        <!--   Add json-->
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>

@@ -52,6 +52,18 @@
           <groupId>com.alibaba.blink</groupId>
         </exclusion>
         <exclusion>
+          <artifactId>flink-shaded-guava</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>commons-math3</artifactId>
+          <groupId>org.apache.commons</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jsr305</artifactId>
+          <groupId>com.google.code.findbugs</groupId>
+        </exclusion>
+        <exclusion>
           <artifactId>force-shading</artifactId>
           <groupId>com.alibaba.blink</groupId>
         </exclusion>
